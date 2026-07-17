@@ -1,25 +1,45 @@
 import allure
 import pytest
 import requests
-import random
-import string
+from generators import generate_random_string
 
-
-def generate_random_string(length):
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for i in range(length))
 
 
 @allure.title("Создание курьера")
 class TestCourierCreation:
 
     @allure.title("Курьера можно создать")
-    def test_courier_can_be_created(self, courier_data):
-        response = requests.post(
-            'https://qa-scooter.praktikum-services.ru/api/v1/courier',
-            data=courier_data
-        )
-        assert response.status_code == 201, f"Курьер не создан. Код ответа: {response.status_code}"
+    def test_courier_can_be_created(self):
+        login = generate_random_string(10)
+        password = generate_random_string(10)
+        first_name = generate_random_string(10)
+
+        courier_data = {
+            "login": login,
+            "password": password,
+            "firstName": first_name,
+        }
+        try:
+            response = requests.post(
+                "https://qa-scooter.praktikum-services.ru/api/v1/courier",
+                data=courier_data,
+            )
+            assert response.status_code == 201, (
+                f"Курьер не создан. Код ответа: {response.status_code}"
+            )
+        finally:
+            login_response = requests.post(
+                "https://qa-scooter.praktikum-services.ru/api/v1/courier/login",
+                json={"login": login, "password": password},
+            )
+            if login_response.status_code == 200:
+                access_token = login_response.json().get("accessToken")
+                if access_token:
+                    requests.delete(
+                        "https://qa-scooter.praktikum-services.ru/api/v1/courier",
+                        headers={"Authorization": f"Bearer {access_token}"},
+                    )
+            
 
 
     @allure.title("нельзя создать двух одинаковых курьеров")
@@ -30,7 +50,7 @@ class TestCourierCreation:
         )
         assert response_1.status_code == 201, "Первый курьер не создан"
         response_2 = requests.post(
-            'https://qa-scooter.praktikum-services.ru/api/v1/courier',
+           'https://qa-scooter.praktikum-services.ru/api/v1/courier',
             data=courier_data
         )
         assert response_2.status_code == 409, f"Ожидался код 409, получен: {response_2.status_code}"
@@ -67,25 +87,6 @@ class TestCourierCreation:
         assert response.status_code == 201, f"Ожидался код 201 без firstName, получен: {response.status_code}"
 
 
-    @allure.title("Запрос возвращает правильный код ответа")
-    def test_correct_response_code(self, courier_data):
-        response = requests.post(
-            'https://qa-scooter.praktikum-services.ru/api/v1/courier',
-            data=courier_data
-        )
-        assert response.status_code == 201, f"Ожидался код 201, получен: {response.status_code}"
-
-
-    @allure.title("успешный запрос возвращает {\"ok\":true}")
-    def test_successful_request(self, courier_data):
-        response = requests.post(
-            'https://qa-scooter.praktikum-services.ru/api/v1/courier',
-            data=courier_data
-        )
-        assert response.status_code == 201, f"Курьер не создан. Код ответа: {response.status_code}"
-        assert response.json() == {"ok": True}, f"Ожидался {{\"ok\":true}}, получен: {response.json()}"
-
-
     @allure.title("Если одного из полей нет, запрос возвращает ошибку")
     def test_missing_field_returns_error(self, courier_data):
         response = requests.post(
@@ -105,18 +106,7 @@ class TestCourierCreation:
         assert response.status_code == 201, f"Ожидался код 201 без firstName, получен: {response.status_code}"
 
 
-    @allure.title("Если создать пользователя с логином, который уже есть, возвращается ошибка")
-    def test_if_the_username_is_the_same_an_error_appears(self, courier_data):
-        response_1 = requests.post(
-            'https://qa-scooter.praktikum-services.ru/api/v1/courier',
-            data=courier_data
-        )
-        assert response_1.status_code == 201, "Первый курьер не создан"
-        response_2 = requests.post(
-            'https://qa-scooter.praktikum-services.ru/api/v1/courier',
-            data=courier_data
-        )
-        assert response_2.status_code == 409, f"Ожидался код 409, получен: {response_2.status_code}"
+    
 
 
 

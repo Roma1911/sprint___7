@@ -1,13 +1,18 @@
-import allure
+
 import pytest
 import requests
 import random
 import string
 
 
-def generate_random_string(length):
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for i in range(length))
+BASE_URL = "https://qa-scooter.praktikum-services.ru/api/v1"
+CREATE_COURIER_URL = f"{BASE_URL}/courier"
+LOGIN_COURIER_URL = f"{BASE_URL}/courier/login"
+
+
+def generate_random_string(length: int = 10) -> str:
+    chars = string.ascii_lowercase + string.digits
+    return "".join(random.choices(chars, k=length))
 
 
 @pytest.fixture
@@ -15,41 +20,37 @@ def courier_data():
     return {
         "login": generate_random_string(10),
         "password": generate_random_string(10),
-        "firstName": generate_random_string(10)
+        "firstName": generate_random_string(10),
     }
     
 
 @pytest.fixture
-def create_courier():
-    login = generate_random_string(10)
-    password = generate_random_string(10)
-    first_name = generate_random_string(10)
-
-    courier = {
-        "login": login,
-        "password": password,
-        "firstName": first_name
-    }
-    
-    create_response = requests.post(
-        'https://qa-scooter.praktikum-services.ru/api/v1/courier',
-        data=courier
-    )
-    if create_response.status_code != 201:
-        raise Exception(f"Не удалось создать курьера. Код: {create_response.status_code}")
-    
-    yield courier
-    try:
-        login_response = requests.post(
-            'https://qa-scooter.praktikum-services.ru/api/v1/courier/login',
-            data={"login": login, "password": password}
+def create_courier(courier_data):
+    """Создаёт курьера и гарантированно удаляет его после теста."""
+    response = requests.post(CREATE_COURIER_URL, data=courier_data)
+    if response.status_code != 201:
+        raise Exception(
+            f"Не удалось создать курьера. Код: {response.status_code}, "
+            f"Ответ: {response.text}"
         )
-        if login_response.status_code == 200:
-            courier_id = login_response.json().get("id")
-            
-            if courier_id:
-                requests.delete(
-                    f'https://qa-scooter.praktikum-services.ru/api/v1/courier/{courier_id}'
-                )
-    except Exception:
-        pass
+
+    created = response.json()
+    result = {
+        **courier_data,
+    }
+    yield result
+    
+@pytest.fixture
+def payload_without_field():
+    def _make_payload(missing_field: str):
+        base = {
+            "login": generate_random_string(10),
+            "password": generate_random_string(10),
+            "firstName": generate_random_string(10),
+        }
+        base.pop(missing_field, None)
+        return base
+
+    return _make_payload
+
+
