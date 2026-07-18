@@ -1,18 +1,13 @@
 
 import pytest
 import requests
-import random
-import string
 
 
-BASE_URL = "https://qa-scooter.praktikum-services.ru/api/v1"
-CREATE_COURIER_URL = f"{BASE_URL}/courier"
-LOGIN_COURIER_URL = f"{BASE_URL}/courier/login"
-
-
-def generate_random_string(length: int = 10) -> str:
-    chars = string.ascii_lowercase + string.digits
-    return "".join(random.choices(chars, k=length))
+from helpers import (
+    CREATE_COURIER_URL,
+    LOGIN_COURIER_URL,
+    generate_random_string,
+)
 
 
 @pytest.fixture
@@ -26,19 +21,28 @@ def courier_data():
 
 @pytest.fixture
 def create_courier(courier_data):
-    """Создаёт курьера и гарантированно удаляет его после теста."""
     response = requests.post(CREATE_COURIER_URL, data=courier_data)
-    if response.status_code != 201:
-        raise Exception(
-            f"Не удалось создать курьера. Код: {response.status_code}, "
-            f"Ответ: {response.text}"
-        )
+    assert response.status_code == 201, (
+        f"Не удалось создать курьера. Код: {response.status_code}, "
+        f"Ответ: {response.text}"
+    )
+    yield courier_data
 
-    created = response.json()
-    result = {
-        **courier_data,
-    }
-    yield result
+    login_response = requests.post(
+        LOGIN_COURIER_URL,
+        data={
+            "login": courier_data["login"],
+            "password": courier_data["password"],
+        },
+    )
+    if login_response.status_code == 200:
+        token = login_response.json().get("accessToken")
+        if token:
+            requests.delete(
+                CREATE_COURIER_URL,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
     
 @pytest.fixture
 def payload_without_field():

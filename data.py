@@ -1,7 +1,3 @@
-
-import pytest
-import requests
-
 order_data = {
     "firstName": "Роман",
     "lastName": "Романов",

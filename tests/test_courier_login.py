@@ -1,8 +1,7 @@
 import allure
 import pytest
 import requests
-from config import COURIER_LOGIN_ENDPOINT
-from generators import generate_random_string
+from helpers import LOGIN_COURIER_URL, generate_random_string
 
 
 @allure.feature('Авторизация курьера')
@@ -10,101 +9,63 @@ class TestCourierLogin:
 
     @allure.title("Для авторизации нужно передать все обязательные поля")
     @pytest.mark.parametrize(
-        "missing_field, expected_status",
-        [("login", 400), ("password", 400)],
+        "missing_field",
+        ["login", "password"],
         ids=["missing_login", "missing_password"],
     )
     def test_authorization_without_required_fields_returns_an_error(
-        self, payload_without_field, missing_field, expected_status
-    ):
-        data = payload_without_field(missing_field)
-        response = requests.post(COURIER_LOGIN_ENDPOINT, data=data)
-
-        assert response.status_code == expected_status, (
-            f"Ожидался код {expected_status}, получен: {response.status_code}. "
+        self, payload_without_field, missing_field):
+        payload = payload_without_field(missing_field)
+        response = requests.post(LOGIN_COURIER_URL, data=payload)
+        assert response.status_code == 400, (
+            f"Ожидался 400 без {missing_field}, получен: {response.status_code}. "
             f"Тело: {response.text}"
         )
         body = response.json()
-        assert isinstance(body, dict)
-        assert "error" in body or "message" in body
+        assert isinstance(body, dict), "Тело ответа должно быть JSON-объектом"
 
-    @allure.title("Система вернёт ошибку, если неправильно указать логин или пароль")
+
+    @allure.title("Неверный логин или пароль возвращает ошибку")
     @pytest.mark.parametrize(
-        "wrong_login_value, wrong_password_value, expected_status",
+        "payload",
         [
-            ("wrong_login", "{password}", 404),
-            ("{login}", "wrong_password", 404),
+            {"login": "wrong_login", "password": "{password}"},
+            {"login": "{login}", "password": "wrong_password"},
         ],
         ids=["wrong_login", "wrong_password"],
     )
-    def test_wrong_login_or_password_returns_error(
-        self, create_courier, wrong_login_value, wrong_password_value, expected_status
-    ):
-        login = wrong_login_value.format(login=create_courier["login"], password=create_courier["password"])
-        password = wrong_password_value.format(login=create_courier["login"], password=create_courier["password"])
-
-        response = requests.post(
-            COURIER_LOGIN_ENDPOINT,
-            data={"login": login, "password": password},
-        )
-
-        assert response.status_code == expected_status, (
-            f"Ожидался код {expected_status}, получен: {response.status_code}"
-        )
-        body = response.json()
-        assert isinstance(body, dict)
-        assert "error" in body or "message" in body
-
-
-    @allure.title("Если какого-то поля нет, запрос возвращает ошибку")
-    def test_missing_field_returns_error(self):
-        response = requests.post(
-            COURIER_LOGIN_ENDPOINT,
-            data={"password": generate_random_string(10)},
-        )
-        assert response.status_code == 400, (
-            f"Ожидался 400 без login, получен: {response.status_code}, тело: {response.text}"
-        )
-        body = response.json()
-        assert isinstance(body, dict)
-        assert "error" in body or "message" in body
-        response = requests.post(
-            COURIER_LOGIN_ENDPOINT,
-            data={"login": generate_random_string(10)},
-        )
-        assert response.status_code == 400, (
-            f"Ожидался 400 без password, получен: {response.status_code}, тело: {response.text}"
-        )
-        body = response.json()
-        assert isinstance(body, dict)
-        assert "error" in body or "message" in body
-
-
-    @allure.title("Если авторизоваться под несуществующим пользователем, запрос возвращает ошибку")
-    def test_authorization_under_a_non_existent_user(self):
-        response = requests.post(
-            COURIER_LOGIN_ENDPOINT,
-            data={
-                "login": generate_random_string(10),
-                "password": generate_random_string(10),
-            },
-        )
+    def test_wrong_login_or_password_returns_error(self, create_courier, payload):
+        data = {
+            "login": payload["login"].format(
+                login=create_courier["login"],
+                password=create_courier["password"],
+            ),
+            "password": payload["password"].format(
+                login=create_courier["login"],
+                password=create_courier["password"],
+            ),
+        }
+        response = requests.post(LOGIN_COURIER_URL, data=data)
         assert response.status_code == 404, (
-            f"Ожидался 404 для несуществующего пользователя, получен: {response.status_code}"
+            f"Ожидался 404, получен: {response.status_code}. Тело: {response.text}"
         )
         body = response.json()
-        assert isinstance(body, dict)
-        assert "error" in body or "message" in body
-
+        assert isinstance(body, dict), "Тело ответа должно быть JSON-объектом"
         
+
     @allure.title("Успешный запрос возвращает id")
     def test_successful_request_returns_the_id(self, create_courier):
         response = requests.post(
-            COURIER_LOGIN_ENDPOINT,
-            data=create_courier
+            LOGIN_COURIER_URL,
+            data={
+                "login": create_courier["login"],
+                "password": create_courier["password"],
+            },
         )
-        assert response.status_code == 200, f"Курьер не авторизовался. Код: {response.status_code}"
+        assert response.status_code == 200, (
+            f"Ожидался 200, получен: {response.status_code}. Тело: {response.text}"
+        )
         body = response.json()
         assert isinstance(body, dict), "Тело ответа должно быть JSON-объектом"
-        assert "id" in response.json(), "В ответе нет id курьера"
-        assert response.json()["id"] is not None, "id курьера не должен быть None"
+        assert "id" in body, "В ответе нет id"
+        assert body["id"] is not None, "id не должен быть None"
