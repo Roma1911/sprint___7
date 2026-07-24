@@ -2,6 +2,7 @@ import allure
 import pytest
 import requests
 from helpers import CREATE_COURIER_URL
+from helpers import LOGIN_COURIER_URL
 
 
 
@@ -43,6 +44,26 @@ class TestCourierCreation:
         )
         body = response.json()
         assert isinstance(body, dict), "Тело ответа должно быть JSON-объектом"
+
+
+    @allure.title("Если авторизоваться под несуществующим пользователем, запрос возвращает ошибку")
+    def test_authorization_of_a_non_existent_user(self, courier_data):
+        response = requests.post(
+            LOGIN_COURIER_URL,
+            data={
+                "login": courier_data["login"],
+                "password": courier_data["password"],
+            },
+        )
+        assert response.status_code == 404, (
+            f"Ожидался код 404, получен: {response.status_code}. "
+            f"Тело: {response.text}"
+        )
+        body = response.json()
+        assert isinstance(body, dict), "Тело ответа должно быть JSON-объектом"
+        assert "message" in body or "error" in body, (
+            "В ответе должно быть поле message или error"
+        )
 
 
     

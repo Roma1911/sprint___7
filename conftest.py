@@ -1,11 +1,10 @@
 
 import pytest
 import requests
-
-
 from helpers import (
     CREATE_COURIER_URL,
     LOGIN_COURIER_URL,
+    DELETE_COURIER_URL,
     generate_random_string,
 )
 
@@ -27,7 +26,6 @@ def create_courier(courier_data):
         f"Ответ: {response.text}"
     )
     yield courier_data
-
     login_response = requests.post(
         LOGIN_COURIER_URL,
         data={
@@ -39,7 +37,7 @@ def create_courier(courier_data):
         token = login_response.json().get("accessToken")
         if token:
             requests.delete(
-                CREATE_COURIER_URL,
+                DELETE_COURIER_URL,
                 headers={"Authorization": f"Bearer {token}"},
             )
 
@@ -54,7 +52,6 @@ def payload_without_field():
         }
         base.pop(missing_field, None)
         return base
-
     return _make_payload
 
 
