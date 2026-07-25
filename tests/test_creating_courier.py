@@ -31,12 +31,12 @@ class TestCourierCreation:
         assert "message" in body, "В ответе должно быть поле message"
         msg = body["message"].lower()
         expected_keywords = [
-        "логин уже используется",
-        "логин уже занят",
-        "логин уже существует",
-        ]
+                "логин уже используется",
+                "логин уже занят",
+                "логин уже существует",
+                ]
         assert (keyword in msg for keyword in expected_keywords), (
-        f"Текст ошибки не содержит ожидаемых слов. Получено: {body['message']}")
+            f"Текст ошибки не содержит ожидаемых слов. Получено: {body['message']}")
 
 
     @allure.title('Чтобы создать курьера, нужно передать все обязательные поля')
