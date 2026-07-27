@@ -29,15 +29,9 @@ class TestCourierCreation:
         assert isinstance(body, dict), "Тело ответа должно быть JSON-объектом"
         assert "code" in body and body["code"] == 409, "В ответе должен быть code 409"
         assert "message" in body, "В ответе должно быть поле message"
-        msg = body["message"].lower()
-        expected_keywords = [
-                        "логин уже используется",
-                        "логин уже занят",
-                        "логин уже существует",
-                        ]
-        assert (keyword in msg for keyword in expected_keywords), (
-                f"Текст ошибки не содержит ожидаемых слов. Получено: {body['message']}")
-
+        expected_msg = "Этот логин уже используется. Попробуйте другой."
+        assert body["message"] == expected_msg, (
+            f"Ожидалось: {expected_msg}. Получено: {body['message']}")
 
     @allure.title('Чтобы создать курьера, нужно передать все обязательные поля')
     @pytest.mark.parametrize(
@@ -54,6 +48,11 @@ class TestCourierCreation:
         )
         body = response.json()
         assert isinstance(body, dict), "Тело ответа должно быть JSON-объектом"
+        assert "code" in body and body["code"] == 400, "В ответе должен быть code 400"
+        assert "message" in body, "В ответе должно быть поле message"
+        expected_msg = "Недостаточно данных для создания учетной записи"
+        assert body["message"] == expected_msg, (
+            f"Ожидалось: {expected_msg}. Получено: {body['message']}")
 
 
     @allure.title("Если авторизоваться под несуществующим пользователем, запрос возвращает ошибку")
@@ -74,7 +73,11 @@ class TestCourierCreation:
         assert "message" in body or "error" in body, (
             "В ответе должно быть поле message или error"
         )
-
+        msg = body.get("message") or body.get("error")
+        expected_msg = "Учетная запись не найдена"
+        assert msg == expected_msg, (
+            f"Ожидалось: {expected_msg}. Получено: {msg}"
+        )
 
     
 
